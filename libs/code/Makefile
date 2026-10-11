@@ -50,6 +50,10 @@ bench: ## Run benchmarks under CodSpeed instrumentation
 bench-memory: ## Run memory benchmarks under CodSpeed instrumentation
 	uv run --group test pytest ./tests -m memory_benchmark --codspeed
 
+.PHONY: windows-exe
+windows-exe: ## Build a Windows single-file executable with bundled Python
+	uv run --no-sync python scripts/build_windows_exe.py
+
 run: ## Reinstall and run package
 	uvx --no-cache --reinstall .
 
