@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 import warnings
 from collections.abc import Iterator, Mapping
@@ -1513,6 +1514,23 @@ class TestGetSystemPromptNonInteractive:
             assert "write_todos" not in prompt
             assert "{todo_list_section}" not in prompt
             assert "{todo_guidance}" not in prompt
+
+
+def test_prompt_file_example_writes_to_workspace(tmp_path: Path) -> None:
+    """The advertised local path passes tool validation and targets the workspace."""
+    from deepagents.backends import FilesystemBackend
+    from deepagents.backends.utils import validate_path
+
+    with patch("deepagents_code.agent.credentials", Mock()):
+        prompt = get_system_prompt("test-agent", cwd=tmp_path)
+    example = re.search(r"use `([^`]+/research_project/file.md)`", prompt)
+    assert example is not None
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=False)
+    result = backend.write(validate_path(example.group(1)), "workspace content")
+    assert result.error is None
+    assert (
+        tmp_path / "research_project" / "file.md"
+    ).read_text() == "workspace content"
 
 
 class TestGetSystemPromptCwdOSError:

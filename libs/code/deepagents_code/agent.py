@@ -6,6 +6,7 @@ import inspect
 import logging
 import re
 import shutil
+import sys
 import warnings
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
@@ -130,6 +131,7 @@ from deepagents_code.offload import (
     _FALLBACK_ARTIFACTS_ROOT,
     CONVERSATION_HISTORY_DIRNAME,
     _artifacts_root,
+    _filesystem_tool_path,
     _offload_fallback_root,
 )
 from deepagents_code.offload_middleware import (
@@ -1762,15 +1764,16 @@ def get_system_prompt(
                 )
                 resolved_cwd = Path()
         cwd = resolved_cwd
+        tool_cwd = _filesystem_tool_path(resolved_cwd)
         working_dir_section = (
             f"### Current Working Directory\n\n"
             f"The filesystem backend is currently operating in: `{cwd}`\n\n"
             f"### File System and Paths\n\n"
             f"**IMPORTANT - Path Handling:**\n"
-            f"- All file paths must be absolute paths (e.g., `{cwd}/file.txt`)\n"
+            f"- All file paths must be absolute paths (e.g., `{tool_cwd}/file.txt`)\n"
             f"- Use the working directory to construct absolute paths\n"
             f"- Example: To create a file in your working directory, "
-            f"use `{cwd}/research_project/file.md`\n"
+            f"use `{tool_cwd}/research_project/file.md`\n"
             f"- Never use relative paths - always construct full absolute paths\n\n"
         )
 
@@ -3112,6 +3115,11 @@ def create_cli_agent(
     if sandbox is None:
         # ========== LOCAL MODE ==========
         root_dir = effective_cwd if effective_cwd is not None else Path.cwd()
+        if sys.platform == "win32":
+            from deepagents_code.windows_paths import WindowsPathMiddleware
+
+            # Guards and hooks must inspect the same path the SDK will execute.
+            agent_middleware.insert(0, WindowsPathMiddleware(str(root_dir)))
         if enable_shell:
             # Restore launch and project-dotenv LangSmith settings instead of
             # agent-only credentials in the workspace environment.

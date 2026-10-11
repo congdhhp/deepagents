@@ -2762,7 +2762,8 @@ async def resolve_and_load_mcp_tools(
             # Indexed, not `.get`: see `MCPConfigSources.project_roots`.
             project_root = project_roots[source]
             kept.update(
-                filter_trusted_project_servers(
+                await asyncio.to_thread(
+                    filter_trusted_project_servers,
                     {name: server},
                     trust_lists,
                     project_root=project_root,
