@@ -22,9 +22,12 @@ on top, keeping the full content off-screen until submission.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import sys
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from textual import events
 from textual.binding import Binding
 from textual.widgets import TextArea
 
@@ -40,7 +43,6 @@ from deepagents_code.paste_collapse import (
 )
 
 if TYPE_CHECKING:
-    from textual import events
     from textual.timer import Timer
 
 logger = logging.getLogger(__name__)
@@ -107,6 +109,12 @@ class PasteBurstTextArea(TextArea):
 
     BINDINGS: ClassVar[list[Binding]] = [
         Binding(
+            "ctrl+v,ctrl+shift+v,shift+insert",
+            "paste_from_clipboard",
+            "Paste",
+            show=False,
+        ),
+        Binding(
             "shift+enter,alt+enter,ctrl+enter,ctrl+j",
             "insert_newline",
             "New Line",
@@ -151,6 +159,35 @@ class PasteBurstTextArea(TextArea):
         """Initialize the text area and its paste-burst state."""
         super().__init__(**kwargs)
         self._init_paste_burst_state()
+
+    async def action_paste_from_clipboard(self) -> None:
+        """Read the Windows clipboard when the terminal forwards a paste key.
+
+        Console windows launched directly may forward Ctrl+V rather than a
+        bracketed paste. Textual's internal clipboard does not contain text
+        copied from other applications. Use the normal paste event pipeline so
+        multiline text, path detection, and collapsed pastes still work.
+        """
+        if sys.platform != "win32":
+            super().action_paste()
+            return
+
+        import pyperclip
+
+        try:
+            text = await asyncio.to_thread(pyperclip.paste)
+        except (pyperclip.PyperclipException, OSError, RuntimeError, ValueError):
+            logger.debug("Could not read Windows clipboard", exc_info=True)
+            self.notify(
+                "Could not read Windows clipboard. Try again.", severity="warning"
+            )
+            return
+        if text and not self.read_only:
+            event = events.Paste(text)
+            # This event already targets the editor; bubbling to App would
+            # forward it to the focused editor again and duplicate the paste.
+            event.stop()
+            self.post_message(event)
 
     def _init_paste_burst_state(self) -> None:
         """Reset all paste-burst tracking fields to their initial values."""
