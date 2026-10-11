@@ -188,7 +188,7 @@ jobs:
       # AbortSignal.timeout) doesn't depend on whatever the runner image
       # preinstalls; matches the version the helper tests run under in ci.yml.
       - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version: "24"
 
